@@ -23,8 +23,8 @@
         #alertMsg { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: bold; color: #ff3333; text-shadow: 0 0 25px #ff0000, 2px 2px 5px black; display: none; z-index: 10; width: 100%; text-align: center;}
         #bloodWarning { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 45px; font-weight: bold; color: #ff0000; text-shadow: 0 0 30px darkred, 0 0 15px black; display: none; z-index: 5; opacity: 0.8; pointer-events: none; }
 
-        .film-grain { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 85; opacity: 0.2; display: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-        #vhsFilter { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: repeating-linear-gradient(rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 2px, transparent 2px, transparent 4px); pointer-events: none; z-index: 90; display: none; opacity: 0.5; }
+        .film-grain { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 85; opacity: 0.1; display: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+        #vhsFilter { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: repeating-linear-gradient(rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 2px, transparent 2px, transparent 4px); pointer-events: none; z-index: 90; display: none; opacity: 0.3; }
         
         .chromatic-aberration { text-shadow: -3px 0 0 red, 3px 0 0 blue !important; animation: shake 0.15s infinite; }
         @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 50% { transform: translate(-2px, -2px) rotate(-1deg); } 100% { transform: translate(-3px, 0px) rotate(1deg); } }
@@ -70,12 +70,20 @@
     <div id="miniScareOverlay"><img src="scare.png" alt="Ghost2"></div>
 
     <div id="initScreen" class="cute-overlay"><h1>환영합니다!</h1><p style="font-size: 25px;">화면을 아무 곳이나 클릭해서 입장해주세요 💖</p></div>
+    
     <div id="startScreen" class="cute-overlay" style="display: none;">
+        <!-- 💡 히든 토글 버튼 -->
+        <div id="peaceToggle" style="position: absolute; top: 25px; right: 30px; font-size: 40px; cursor: pointer; opacity: 0.15; transition: 0.3s;" title="비밀 버튼">👻</div>
+        
         <h1>✨ 뽀짝 요정의 별빛 방탈출 ✨</h1>
         <p>복잡한 미로와 닫힌 방들 사이에서 잃어버린 별 조각 5개를 찾아주세요!</p>
-        <p style="color:#444; font-size:18px; margin-top:15px;">W,A,S,D (이동) | Shift (총총 뛰기 💖) | F (손전등) | E (상호작용)</p>
+        <p style="color:#444; font-size:18px; margin-top:15px;">W,A,S,D (이동) | Shift (뛰기 💖) | F (손전등) | E (상호작용)</p>
+        
+        <p id="modeText" style="color:#27ae60; font-size:22px; margin-top:10px; font-weight: 900; display:none; background:rgba(255,255,255,0.7); padding:5px 15px; border-radius:10px;">[현재 모드: 평화 모드 🕊️ - 괴물이 등장하지 않습니다]</p>
+        
         <button id="startBtn">미로탈출 시작 💖</button>
     </div>
+    
     <div id="endScreen" class="horror-overlay"><h1 id="endMessage" style="font-size: 55px; color: #ff3333; text-shadow: 0 0 20px red;"></h1><button onclick="location.reload()">다시 도전</button></div>
 
 <script>
@@ -93,6 +101,8 @@
 
     let audioCtx, droneOsc, droneGain;
     let sound2Timeout, genSoundTimeout, deathSoundTimeout; 
+    
+    let isPeacefulMode = false;
 
     function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
 
@@ -101,11 +111,6 @@
         osc.type = 'square'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.03);
         gain.gain.setValueAtTime(0.5, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.03);
         osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.03);
-        
-        let noise = audioCtx.createBufferSource(), buffer = audioCtx.createBuffer(1, audioCtx.sampleRate*0.02, audioCtx.sampleRate), data = buffer.getChannelData(0);
-        for(let i=0; i<buffer.length; i++) data[i] = Math.random()*2-1;
-        noise.buffer = buffer; let nGain = audioCtx.createGain(); nGain.gain.setValueAtTime(0.3, audioCtx.currentTime); nGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.02);
-        noise.connect(nGain); nGain.connect(audioCtx.destination); noise.start();
     }
 
     function playKeySound() {
@@ -139,6 +144,20 @@
         let gain = audioCtx.createGain(); gain.gain.setValueAtTime(1.0, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
         noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); noise.start();
     }
+    
+    function playShrineSound() {
+        if (!audioCtx) return; let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(100, audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 1.2);
+        gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+        osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 1.2);
+    }
+
+    function playPowerOffSound() {
+        if (!audioCtx) return; let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+        osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+    }
 
     function startAmbientDrone() {
         if (!audioCtx) return; droneOsc = audioCtx.createOscillator(); droneGain = audioCtx.createGain();
@@ -152,12 +171,14 @@
 
     const canvas = document.getElementById('gameCanvas'), ctx = canvas.getContext('2d');
     const maskCanvas = document.createElement('canvas'), maskCtx = maskCanvas.getContext('2d');
+    
     const ui = {
         main: document.getElementById('ui'), start: document.getElementById('startScreen'), end: document.getElementById('endScreen'), msg: document.getElementById('endMessage'),
         key: document.getElementById('keyCount'), stamina: document.getElementById('staminaBar'), battery: document.getElementById('batteryBar'),
         flashStatus: document.getElementById('flashlightStatus'), interact: document.getElementById('interactionMsg'), alert: document.getElementById('alertMsg'),
         bloodWar: document.getElementById('bloodWarning'), itemName: document.getElementById('itemName'), vhs: document.getElementById('vhsFilter'), grain: document.getElementById('filmGrain'),
-        powerContainer: document.getElementById('powerTimerContainer'), powerSec: document.getElementById('powerSec')
+        powerContainer: document.getElementById('powerTimerContainer'), powerSec: document.getElementById('powerSec'),
+        jumpscare: document.getElementById('jumpscareOverlay'), miniScare: document.getElementById('miniScareOverlay')
     };
 
     const preBloodCanvas = document.createElement('canvas'); preBloodCanvas.width = 200; preBloodCanvas.height = 200; const pbCtx = preBloodCanvas.getContext('2d');
@@ -202,9 +223,10 @@
     let activeInteractable = null;
 
     const dustParticles = Array.from({length: 150}, () => ({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, size: Math.random() * 1.5 + 0.5, vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3 }));
+    const PI2 = Math.PI * 2;
 
     // ==========================================
-    // 3. 다채롭고 이동 편한 맵 제네레이터
+    // 3. 맵 제네레이터
     // ==========================================
     const CELL = 300; const WORLD_W = 4500; const WORLD_H = 4500; 
     const env = { walls: [], doors: [], shrines: [], generators: [], bloods: [], decals: [], items: [], batteries: [], roomAreas: [], shards: [], candles: [] };
@@ -267,21 +289,14 @@
         for(let c=0; c<15; c++) {
             if (grid[r][c] === 'EMPTY' && Math.random() > 0.5) {
                 let px = c * CELL + 100, py = r * CELL + 100; 
-                if (Math.random() > 0.5) {
-                    mazeWalls.push({x: px, y: py, w: 100, h: 100}); 
-                } else {
-                    mazeWalls.push({x: px, y: py, w: 150, h: 50}); 
-                    mazeWalls.push({x: px, y: py, w: 50, h: 150}); 
-                }
+                if (Math.random() > 0.5) { mazeWalls.push({x: px, y: py, w: 100, h: 100}); } 
+                else { mazeWalls.push({x: px, y: py, w: 150, h: 50}); mazeWalls.push({x: px, y: py, w: 50, h: 150}); }
             }
         }
     }
     env.walls.push(...mazeWalls.filter(w => {
         if (w.x < 450 && w.y < 450) return false; 
-        for (let d of env.doors) { 
-            let pad = 180; 
-            if (w.x < d.origX + d.w + pad && w.x + w.w > d.origX - pad && w.y < d.origY + d.h + pad && w.y + w.h > d.origY - pad) return false; 
-        } 
+        for (let d of env.doors) { let pad = 180; if (w.x < d.origX + d.w + pad && w.x + w.w > d.origX - pad && w.y < d.origY + d.h + pad && w.y + w.h > d.origY - pad) return false; } 
         return true;
     }));
 
@@ -344,44 +359,110 @@
 
     for(let i=0; i<120; i++) {
         let pos = getSafePos(40), r = Math.random()*60+40; let tooClose = env.bloods.some(b => getDist(pos, b) < 250);
-        if (!tooClose) env.bloods.push({x: pos.x, y: pos.y, radius: r, rot: Math.random()*Math.PI*2, drags: Array.from({length: 3}, () => ({x: pos.x, y: pos.y, a: Math.random()*Math.PI*2, len: Math.random()*100+50, w: Math.random()*15+5}))});
+        if (!tooClose) env.bloods.push({x: pos.x, y: pos.y, radius: r, rot: Math.random()*PI2, drags: Array.from({length: 3}, () => ({x: pos.x, y: pos.y, a: Math.random()*PI2, len: Math.random()*100+50, w: Math.random()*15+5}))});
     }
     const cTexts = ["행복해 💖", "사랑 가득!", "포근해", "꽃향기"], hTexts = ["갈기갈기 찢어줄게", "사지가 찢길거야", "내장을 꺼내줄까", "뼈를 씹어먹어줄게", "네 피로 목욕할거야", "도망칠 수 없어", "살점 하나 남기지 않아", "시체가 썩는 냄새"];
     for(let i=0; i<100; i++) { let pos = getSafePos(30); env.decals.push({ x: pos.x, y: pos.y, cText: cTexts[Math.floor(Math.random()*cTexts.length)], hText: hTexts[Math.floor(Math.random()*hTexts.length)], angle: (Math.random()-0.5)*0.5, isEmoji: Math.random()>0.8 }); }
     for(let i=0; i<3; i++) { let p = getSafePos(16, false, 1200, 1); env.items.push({x: p.x, y: p.y, size: 16}); }
     for(let i=0; i<2; i++) { let p = getSafePos(16, false, 1200, 2); env.items.push({x: p.x, y: p.y, size: 16}); }
-    for(let i=0; i<2; i++) { let p = getSafePos(16, false, 800, 1); env.batteries.push({x: p.x, y: p.y, size: 12}); }
-    for(let i=0; i<2; i++) { let p = getSafePos(16, false, 800, 2); env.batteries.push({x: p.x, y: p.y, size: 12}); }
+    
+    // 배터리 넉넉하게
+    for(let i=0; i<3; i++) { let p = getSafePos(16, false, 800, 1); env.batteries.push({x: p.x, y: p.y, size: 12}); }
+    for(let i=0; i<3; i++) { let p = getSafePos(16, false, 800, 2); env.batteries.push({x: p.x, y: p.y, size: 12}); }
+    
     for(let i=0; i<80; i++) { let pos = getSafePos(20, false, 400, 0); env.shards.push({ x: pos.x, y: pos.y, active: true, opacity: Math.random() > 0.6 ? 0.7 : 0.15, pieces: Array.from({length: 6}, () => ({ox: (Math.random()-0.5)*20, oy: (Math.random()-0.5)*20, size: Math.random()*3+2, angle: Math.random()*Math.PI})) }); }
 
     // ==========================================
     // 4. 입력 및 게임 로직
     // ==========================================
+    
+    document.getElementById('peaceToggle').addEventListener('click', function(e) {
+        e.stopPropagation(); 
+        isPeacefulMode = !isPeacefulMode;
+        document.getElementById('modeText').style.display = isPeacefulMode ? 'block' : 'none';
+        this.style.opacity = isPeacefulMode ? '1.0' : '0.15';
+    });
+    
     document.getElementById('initScreen').addEventListener('click', function() { initAudio(); track1.play().catch(e => {}); this.style.display = 'none'; document.getElementById('startScreen').style.display = 'flex'; });
-    document.getElementById('startBtn').addEventListener('click', () => { ui.start.style.display = 'none'; ui.main.style.display = 'block'; gameActive = true; requestAnimationFrame(gameLoop); });
+    
+    document.getElementById('startBtn').addEventListener('click', () => { 
+        if(gameActive) return; 
+        ui.start.style.display = 'none'; ui.main.style.display = 'block'; 
+        gameActive = true; 
+        requestAnimationFrame(gameLoop); 
+    });
 
     window.addEventListener('keydown', e => { 
         const k = e.key.toLowerCase(); if(input.hasOwnProperty(k)) input[k] = true; 
+        
+        if (k === '0') {
+            initAudio(); 
+            gameActive = false; 
+            track1.pause(); track2.pause(); if(droneOsc) { try { droneOsc.stop(); } catch(e){} }
+            clearTimeout(genSoundTimeout); genAudio.pause(); 
+            document.getElementById('initScreen').style.display = 'none';
+            ui.start.style.display = 'none'; ui.main.style.display = 'none'; ui.vhs.style.display = 'none'; ui.grain.style.display = 'none';
+            playBatterySound(); setTimeout(playBatterySound, 200); setTimeout(playBatterySound, 400);
+            ui.msg.innerText = "✨ (치트키) 미로 무사히 탈출 성공! ✨"; 
+            ui.msg.style.color = "#FFD700"; ui.msg.style.textShadow = "0 0 30px #FFD700";
+            ui.end.style.background = "rgba(255, 255, 255, 0.95)"; ui.end.style.display = 'flex'; 
+            return; 
+        }
+
         if (k === 'shift' && gameActive && player.stamina >= 30 && dashTimer <= 0) {
             player.stamina -= 30; dashTimer = 12; playDashSound(); 
             let dx = 0, dy = 0;
             if (input.w) dy -= 1; if (input.s) dy += 1; if (input.a) dx -= 1; if (input.d) dx += 1;
             if (dx === 0 && dy === 0) { let a = Math.atan2(heavyMouse.y - (player.y - cam.y), heavyMouse.x - (player.x - cam.x)); dx = Math.cos(a); dy = Math.sin(a); } else { let len = Math.hypot(dx, dy); dx /= len; dy /= len; }
             dashDir = {x: dx, y: dy};
+            
+            if (gamePhase === 'HORROR' && !isPeacefulMode) {
+                let mDist = getDist(player, monster);
+                if (mDist < 1800) { 
+                    monster.state = 'CHASE'; 
+                    monster.targetX = player.x; 
+                    monster.targetY = player.y;
+                    monster.enrage = Math.max(monster.enrage, 120); 
+                    
+                    if(Math.random() < 0.25) { 
+                        ui.alert.innerText = "발소리가 너무 큽니다!"; 
+                        ui.alert.style.color = "#ff8800"; ui.alert.style.display = 'block'; 
+                        setTimeout(() => ui.alert.style.display = 'none', 1500); 
+                    }
+                }
+            }
         }
         
         if (k === 'e' && !input.ePressed && gameActive && activeInteractable) {
             input.ePressed = true;
             if (activeInteractable.type === 'shrine' && gamePhase === 'HORROR') {
                 if (!isShrineCooldown) {
-                    isShrineCooldown = true; keyRevealTimer = 300; 
+                    isShrineCooldown = true; keyRevealTimer = 1; 
                     player.battery = Math.max(0, player.battery - 60); player.stamina = Math.max(30, player.stamina - 70); 
-                    monster.state = 'CHASE'; monster.enrage = 1000; monster.targetX = player.x; monster.targetY = player.y; timers.mindEye = 800;
+                    timers.mindEye = 800;
+                    
+                    if (!isPeacefulMode) {
+                        monster.state = 'CHASE'; 
+                        // 💡 제단을 누르면 열쇠를 먹을 때까지 무한으로 쫓아옵니다. (단, 탈출구 렌더링 시엔 800프레임 제한)
+                        monster.enrage = (keysCollected >= maxKeys) ? 800 : 999999; 
+                        monster.targetX = player.x; monster.targetY = player.y; 
+                    }
                     
                     let newPos = getSafePos(30, false, 800, 1); activeInteractable.obj.x = newPos.x; activeInteractable.obj.y = newPos.y; activeInteractable = null;
-                    sound2.currentTime = 0; sound2.play().catch(()=>{}); setTimeout(() => { if(document.getElementById('miniScareOverlay').style.display !== 'flex') sound2.pause(); }, 800);
                     
-                    ui.alert.innerText = keysCollected < maxKeys ? "피의 냄새를 맡고 그것이 쫓아옵니다!" : "탈출구가 보입니다! 당장 뛰세요!";
+                    playShrineSound();
+                    if (!isPeacefulMode) {
+                        setTimeout(() => { if(ui.miniScare.style.display !== 'flex') sound2.pause(); }, 800);
+                    }
+                    
+                    let alertTxt = "탈출구가 보입니다! 당장 뛰세요!";
+                    if (keysCollected < maxKeys) {
+                        alertTxt = isPeacefulMode ? "제단의 힘으로 다음 열쇠 위치를 투시합니다." : "피의 냄새를 맡고 그것이 끝까지 쫓아옵니다!";
+                    } else if (isPeacefulMode) {
+                        alertTxt = "탈출구가 보입니다! 출구를 향해 이동하세요!";
+                    }
+                    ui.alert.innerText = alertTxt;
+                    ui.alert.style.color = isPeacefulMode ? "#FFD700" : "#ff3333";
                     ui.alert.style.display = 'block'; setTimeout(() => ui.alert.style.display = 'none', 3000);
                 } else { ui.alert.innerText = keysCollected < maxKeys ? "제단의 기운이 고갈되었습니다." : "아직 쿨타임입니다."; ui.alert.style.display = 'block'; setTimeout(() => ui.alert.style.display = 'none', 2000); }
             } 
@@ -389,10 +470,9 @@
                 let gen = activeInteractable.obj; 
                 if (!gen.used) { 
                     gen.used = true; player.stamina = 100; globalPowerTimer = 600; 
-                    monster.state = 'CHASE'; monster.enrage = 800; monster.targetX = player.x; monster.targetY = player.y; 
                     genAudio.currentTime = 0; genAudio.play().catch(()=>{}); 
-                    ui.alert.innerText = "전력 복구! 하지만 기계 소음에 괴물이 분노합니다!"; 
-                    ui.alert.style.color = "#ff3333"; ui.alert.style.display = 'block'; setTimeout(() => { ui.alert.style.display = 'none'; }, 4000); 
+                    ui.alert.innerText = "전력 복구! 10초간 시야가 확보됩니다."; 
+                    ui.alert.style.color = "#00ffcc"; ui.alert.style.display = 'block'; setTimeout(() => { ui.alert.style.display = 'none'; }, 4000); 
                 }
             }
             else if (activeInteractable.type === 'door') { let d = activeInteractable.obj; if (d.state === 'closed') { d.state = 'opening'; } else if (d.state === 'open') { d.state = 'closing'; } }
@@ -413,11 +493,21 @@
 
     function goHorror() {
         gamePhase = 'TRANSITION'; timers.transition = 100; track1.pause(); track1.currentTime = 0; startAmbientDrone(); 
-        ui.vhs.style.display = 'block'; ui.grain.style.display = 'block'; ui.itemName.innerText = "🗝️ 열쇠"; ui.itemName.style.color = "#ff3333"; ui.flashStatus.style.display = "block"; escapeGate.active = true;
-        let mx = -1000, my = -1000;
-        for (let i = 0; i < 200; i++) {
-            let a = Math.random() * Math.PI*2; mx = Math.max(100, Math.min(WORLD_W-100, player.x + Math.cos(a)*1200)); my = Math.max(100, Math.min(WORLD_H-100, player.y + Math.sin(a)*1200));
-            if (!env.roomAreas.some(r => mx > r.x - 30 && mx < r.x + r.w + 30 && my > r.y - 30 && my < r.y + r.h + 30)) break; 
+        ui.vhs.style.display = 'block'; ui.grain.style.display = 'block'; 
+        ui.itemName.innerText = "🗝️ 열쇠"; ui.itemName.style.color = isPeacefulMode ? "#FFD700" : "#ff3333"; 
+        ui.flashStatus.style.display = "block"; escapeGate.active = true;
+        
+        let mx = -10000, my = -10000;
+        if (!isPeacefulMode) {
+            for (let i = 0; i < 500; i++) {
+                mx = Math.random() * (WORLD_W - 200) + 100;
+                my = Math.random() * (WORLD_H - 200) + 100;
+                let isRoom = env.roomAreas.some(r => mx > r.x - 50 && mx < r.x + r.w + 50 && my > r.y - 50 && my < r.y + r.h + 50);
+                if (!isRoom && getDist({x:mx, y:my}, player) > 1800) {
+                    let r = Math.floor(my/GRID_SIZE), c = Math.floor(mx/GRID_SIZE);
+                    if(r>=0 && r<ROWS && c>=0 && c<COLS && navGrid[r][c] === 0) break;
+                }
+            }
         }
         monster.x = mx; monster.y = my; monster.state = 'WANDER'; monster.targetX = player.x; monster.targetY = player.y;
     }
@@ -429,7 +519,11 @@
 
         if (gamePhase === 'HORROR' && globalPowerTimer > 0) {
             globalPowerTimer--; ui.powerContainer.style.display = 'block'; ui.powerSec.innerText = (globalPowerTimer / 60).toFixed(1);
-            if (globalPowerTimer === 0) { ui.powerContainer.style.display = 'none'; sound2.currentTime = 0; sound2.play().catch(()=>{}); ui.alert.innerText = "전력이 다시 끊겼습니다..."; ui.alert.style.color = "#ff3333"; ui.alert.style.display = 'block'; setTimeout(() => ui.alert.style.display = 'none', 3000); }
+            if (globalPowerTimer === 0) { 
+                ui.powerContainer.style.display = 'none'; 
+                playPowerOffSound(); 
+                ui.alert.innerText = "전력이 다시 끊겼습니다..."; ui.alert.style.color = "#ff3333"; ui.alert.style.display = 'block'; setTimeout(() => ui.alert.style.display = 'none', 3000); 
+            }
         } else { ui.powerContainer.style.display = 'none'; }
 
         heavyMouse.x += (mouse.x - heavyMouse.x) * 0.15; heavyMouse.y += (mouse.y - heavyMouse.y) * 0.15;
@@ -454,7 +548,19 @@
 
         if (timers.mindEye > 0) timers.mindEye--;
         
-        if (gamePhase === 'HORROR' && player.isLightOn) player.battery = Math.max(0, player.battery - 0.048);
+        if (gamePhase === 'HORROR') {
+            if (player.isLightOn) {
+                player.battery -= 0.048;
+                if (player.battery <= 0) {
+                    player.battery = 0;
+                    player.isLightOn = false;
+                    playPowerOffSound(); 
+                    ui.flashStatus.innerText = "[F] 배터리 방전됨!"; 
+                    ui.flashStatus.className = "";
+                    ui.flashStatus.style.color = "#ff0000";
+                }
+            }
+        }
         ui.battery.style.width = player.battery + '%'; ui.battery.style.background = player.battery > 20 ? (player.isLightOn ? '#FFD700' : '#888') : '#ff0000';
 
         let speed = player.speed + (keysCollected * 0.1); 
@@ -464,7 +570,8 @@
         if (dashTimer > 0) {
             let dashSpeed = speed * 4.5, steps = 4, stepSpeed = dashSpeed / steps;
             for(let i=0; i<steps; i++) {
-                player.x += dashDir.x * stepSpeed; player.y += dashDir.y * stepSpeed; player.x = Math.max(player.radius, Math.min(WORLD_W - player.radius, player.x)); player.y = Math.max(player.radius, Math.min(WORLD_H - player.radius, player.y));
+                player.x += dashDir.x * stepSpeed; player.y += dashDir.y * stepSpeed; 
+                player.x = Math.max(player.radius, Math.min(WORLD_W - player.radius, player.x)); player.y = Math.max(player.radius, Math.min(WORLD_H - player.radius, player.y));
                 env.walls.forEach(w => collide(player, w)); env.doors.forEach(d => { if(d.state !== 'open') collide(player, d); }); env.generators.forEach(g => collide(player, g));
             }
             dashTimer--; isMoving = true;
@@ -473,7 +580,12 @@
             if (inBlood && timers.mindEye <= 0) { speed *= 0.45; ui.bloodWar.style.display = 'block'; ui.stamina.style.background = '#8b0000'; } else { ui.bloodWar.style.display = 'none'; ui.stamina.style.background = player.stamina > 30 ? '#00ff00' : '#ff0000'; }
             if (input.w) { player.y -= speed; isMoving = true; } if (input.s) { player.y += speed; isMoving = true; } if (input.a) { player.x -= speed; isMoving = true; } if (input.d) { player.x += speed; isMoving = true; }
             player.x = Math.max(player.radius, Math.min(WORLD_W - player.radius, player.x)); player.y = Math.max(player.radius, Math.min(WORLD_H - player.radius, player.y));
-            env.walls.forEach(w => collide(player, w)); env.doors.forEach(d => { if(d.state !== 'open') collide(player, d); }); env.generators.forEach(g => collide(player, g));
+            
+            for(let c=0; c<2; c++) {
+                env.walls.forEach(w => collide(player, w)); 
+                env.doors.forEach(d => { if(d.state !== 'open') collide(player, d); }); 
+                env.generators.forEach(g => collide(player, g));
+            }
         }
         
         ui.stamina.style.width = player.stamina + '%';
@@ -486,22 +598,39 @@
             env.shards.forEach(s => {
                 if (s.active && getDist(player, s) < player.radius + 15) {
                     s.active = false; playGlassSound(); effects.camShake = 15; 
-                    monster.state = 'CHASE'; monster.enrage = 600; monster.targetX = player.x; monster.targetY = player.y; 
-                    ui.alert.innerText = "빠직! 유리를 밟았습니다! 그것이 돌진합니다!"; ui.alert.style.color = "#ff3333"; ui.alert.style.display = 'block'; setTimeout(() => ui.alert.style.display = 'none', 2000);
+                    if (!isPeacefulMode) {
+                        monster.state = 'CHASE'; monster.enrage = Math.max(monster.enrage, 400); monster.targetX = player.x; monster.targetY = player.y; 
+                        ui.alert.innerText = "빠직! 유리를 밟았습니다! 그것이 돌진합니다!"; ui.alert.style.color = "#ff3333";
+                    } else {
+                        ui.alert.innerText = "빠직! 유리를 밟았습니다!"; ui.alert.style.color = "#FFD700";
+                    }
+                    ui.alert.style.display = 'block'; setTimeout(() => ui.alert.style.display = 'none', 2000);
                 }
             });
         }
 
         for (let i = env.items.length-1; i >= 0; i--) { 
             if (getDist(player, env.items[i]) < player.radius + env.items[i].size) { 
-                env.items.splice(i, 1); keysCollected++; isShrineCooldown = false; keyRevealTimer = 0; playKeySound(); 
-                if (gamePhase === 'CUTE') goHorror(); if (keysCollected === 2 && !ghost2.active && gamePhase === 'HORROR') { ghost2.active = true; ghost2.timer = Math.random()*2000+2000; } 
+                env.items.splice(i, 1); keysCollected++; isShrineCooldown = false; keyRevealTimer = 0; 
+                
+                // 💡 [변경점] 열쇠 획득 시 괴물의 광폭화 즉시 해제 및 배회 모드 강제 전환
+                monster.enrage = 0;
+                monster.state = 'WANDER';
+                monster.giveUpTimer = 120; // 2초간 플레이어 곁을 맴돌며 추적 중단
+
+                playKeySound(); 
+                
+                if (gamePhase === 'CUTE') goHorror(); 
+                if (keysCollected === 2 && !ghost2.active && gamePhase === 'HORROR' && !isPeacefulMode) { ghost2.active = true; ghost2.timer = Math.random()*2000+2000; } 
             } 
         }
         for (let i = env.batteries.length-1; i >= 0; i--) { 
             if (getDist(player, env.batteries[i]) < player.radius + env.batteries[i].size) { 
                 env.batteries.splice(i, 1); player.battery = Math.min(100, player.battery + 40); playBatterySound(); 
-                if (Math.random() < 0.6 && env.batteries.length < 5) { let loc = Math.random()>0.5 ? 1 : 2; let pos = getSafePos(16, false, 800, loc); env.batteries.push({x:pos.x, y:pos.y, size:12}); } 
+                
+                if(player.battery > 0) { ui.flashStatus.style.color = "#888"; ui.flashStatus.innerText = player.isLightOn ? "[F] 손전등: ON" : "[F] 손전등: OFF"; }
+                
+                if (Math.random() < 0.9 && env.batteries.length < 8) { let loc = Math.random()>0.5 ? 1 : 2; let pos = getSafePos(16, false, 800, loc); env.batteries.push({x:pos.x, y:pos.y, size:12}); } 
             } 
         }
 
@@ -511,8 +640,18 @@
         env.doors.forEach(dr => { let cx = dr.origX + (dr.isVert ? 20 : dr.maxOpen/2), cy = dr.origY + (dr.isVert ? dr.maxOpen/2 : 20), d = getDist(player, {x:cx,y:cy}); if(d<160 && (dr.state==='closed' || dr.state==='open') && d<cDist) { cDist=d; activeInteractable = {type:'door', obj:dr}; } });
 
         if (activeInteractable) { 
-            if (activeInteractable.type === 'shrine') { if (isShrineCooldown) { ui.interact.innerText = "제단의 핏빛 기운이 메말랐습니다."; ui.interact.style.color = "#888"; } else if (keysCollected >= maxKeys) { ui.interact.innerText = "E키: [피의 제단] 탈출구를 투시합니다 ⚠️ (위험: 괴물 폭주)"; ui.interact.style.color = "#ff4444"; } else { ui.interact.innerText = "E키: [피의 제단] 열쇠를 공명시킵니다 ⚠️ (위험: 괴물 폭주)"; ui.interact.style.color = "#ff4444"; } } 
-            else if (activeInteractable.type === 'generator') { ui.interact.innerText = "E키: 비상 발전기 가동 (10초 시야 확보 / 위험: 기계 소음으로 괴물 폭주)"; ui.interact.style.color = "#ff8800"; } 
+            if (activeInteractable.type === 'shrine') { 
+                if (isShrineCooldown) { 
+                    ui.interact.innerText = "제단의 기운이 메말랐습니다."; ui.interact.style.color = "#888"; 
+                } else if (keysCollected >= maxKeys) { 
+                    ui.interact.innerText = isPeacefulMode ? "E키: 탈출구를 투시합니다 (스태미나 소모)" : "E키: [피의 제단] 탈출구를 투시합니다 ⚠️ (위험: 괴물 폭주)"; 
+                    ui.interact.style.color = isPeacefulMode ? "#FFD700" : "#ff4444"; 
+                } else { 
+                    ui.interact.innerText = isPeacefulMode ? "E키: 다음 열쇠를 투시합니다 (스태미나 소모)" : "E키: [피의 제단] 열쇠를 공명시킵니다 ⚠️ (위험: 괴물 폭주)"; 
+                    ui.interact.style.color = isPeacefulMode ? "#FFD700" : "#ff4444"; 
+                } 
+            } 
+            else if (activeInteractable.type === 'generator') { ui.interact.innerText = "E키: 비상 발전기 가동 (10초 시야 확보)"; ui.interact.style.color = "#00ffcc"; } 
             else { ui.interact.innerText = "E키: 문 열고 닫기"; ui.interact.style.color = "#fff"; }
             ui.interact.style.display = 'block'; 
         } else ui.interact.style.display = 'none';
@@ -522,75 +661,94 @@
         else if (gamePhase === 'HORROR') {
             timers.lightning--; if (timers.lightning <= 0) { effects.lightning = 1.0; timers.lightning = Math.random()*600+400; }
             if (effects.lightning > 0) effects.lightning -= 0.05;
-            let mDist = getDist(player, monster);
-            if (mDist < 300) { ui.main.classList.add('chromatic-aberration'); if(Math.random()<0.1){ ui.key.innerText="666"; ui.itemName.innerText="💀"; } } else { ui.main.classList.remove('chromatic-aberration'); ui.key.innerText = keysCollected; ui.itemName.innerText = "🗝️ 열쇠"; }
-
-            let dRange = (player.isLightOn && player.battery > 0) ? 900 : 400; 
-            let mSpd = monster.baseSpeed + (keysCollected * 0.3); 
             
-            if (monster.enrage > 0) { mSpd *= 1.8; monster.enrage--; } 
-            else if (player.isLightOn && player.battery > 0 && getDist(monster, {x:wx, y:wy}) < 250) { mSpd *= 0.3; } 
-            
-            if (monster.giveUpTimer > 0) { monster.giveUpTimer--; monster.state = 'WANDER'; } 
-            else { if (mDist < dRange) monster.state = 'CHASE'; else if (mDist > dRange*1.8 && monster.enrage <= 0) { monster.state = 'WANDER'; monster.targetX = player.x; monster.targetY = player.y; } }
-            
-            timers.navUpdate--;
-            if(timers.navUpdate <= 0) {
-                let targetPos = (monster.state === 'CHASE' || monster.enrage > 0) ? player : {x: monster.targetX, y: monster.targetY};
-                let nextNode = getNextPathNode(monster.x, monster.y, targetPos.x, targetPos.y);
-                if(nextNode) { monster.pathTargetX = nextNode.x; monster.pathTargetY = nextNode.y; }
-                else { monster.pathTargetX = undefined; monster.pathTargetY = undefined; if(monster.state === 'CHASE' || monster.enrage > 0) { monster.state = 'WANDER'; monster.giveUpTimer = 150; monster.targetX = monster.x + (Math.random() > 0.5 ? 1200 : -1200); monster.targetY = monster.y + (Math.random() > 0.5 ? 1200 : -1200); } } 
-                timers.navUpdate = 10;
-            }
+            if (!isPeacefulMode) {
+                let mDist = getDist(player, monster);
+                if (mDist < 300) { ui.main.classList.add('chromatic-aberration'); if(Math.random()<0.1){ ui.key.innerText="666"; ui.itemName.innerText="💀"; } } else { ui.main.classList.remove('chromatic-aberration'); ui.key.innerText = keysCollected; ui.itemName.innerText = "🗝️ 열쇠"; }
 
-            if (monster.state === 'WANDER' && getDist(monster, {x: monster.targetX, y: monster.targetY}) < 30) { monster.targetX = player.x+(Math.random()*1500-750); monster.targetY = player.y+(Math.random()*1500-750); }
-            if (monster.pathTargetX !== undefined && monster.pathTargetY !== undefined) { let a = Math.atan2(monster.pathTargetY - monster.y, monster.pathTargetX - monster.x); monster.x += Math.cos(a)*(monster.state==='CHASE'?mSpd:mSpd*0.6); monster.y += Math.sin(a)*(monster.state==='CHASE'?mSpd:mSpd*0.6); }
-
-            env.walls.forEach(w => collide(monster, w)); env.doors.forEach(d => { if(d.state !== 'open') collide(monster, d); }); env.generators.forEach(g => collide(monster, g));
-
-            if (ghost2.active) {
-                ghost2.timer--;
-                if (ghost2.timer <= 0) {
-                    document.getElementById('miniScareOverlay').style.display = 'flex'; setTimeout(() => document.getElementById('miniScareOverlay').style.display = 'none', 400); 
-                    player.stamina = 0; player.battery = Math.max(0, player.battery - 25); effects.redVignette = 0.6; effects.camShake = 20;
-                    sound2.currentTime = 0; sound2.play().catch(()=>{}); clearTimeout(sound2Timeout); sound2Timeout = setTimeout(() => { sound2.pause(); sound2.currentTime=0; }, 3000); ghost2.timer = Math.random()*2500+2500; 
+                let dRange = (player.isLightOn && player.battery > 0) ? 900 : 400; 
+                let mSpd = monster.baseSpeed + (keysCollected * 0.25);
+                let isEnraged = monster.enrage > 0;
+                
+                if (isEnraged) { 
+                    mSpd *= 1.45; 
+                    monster.enrage--; 
+                } 
+                
+                let isIlluminated = false;
+                if (player.isLightOn && player.battery > 0 && mDist < 650) {
+                    let px = player.x - cam.x, py = player.y - cam.y + bobY;
+                    let mx = monster.x - cam.x, my = monster.y - cam.y + bobY;
+                    let angleToMouse = Math.atan2(heavyMouse.y - py, heavyMouse.x - px);
+                    let angleToMonster = Math.atan2(my - py, mx - px);
+                    let angleDiff = Math.abs(angleToMouse - angleToMonster);
+                    if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+                    if (angleDiff < Math.PI / 4.0) isIlluminated = true;
                 }
-            }
 
-            let tRed = (mDist < 700) ? (1-(mDist/700))*0.4 + (monster.state==='CHASE'?Math.sin(frameCount*0.2)*0.05:0) + (monster.enrage>0?0.15:0) : 0;
-            effects.redVignette += (effects.redVignette > tRed) ? -0.015 : (tRed - effects.redVignette);
+                if (isIlluminated) { mSpd *= 0.3; }
+                
+                if (monster.giveUpTimer > 0) { monster.giveUpTimer--; monster.state = 'WANDER'; } 
+                else { if (mDist < dRange) monster.state = 'CHASE'; else if (mDist > dRange*1.8 && monster.enrage <= 0) { monster.state = 'WANDER'; monster.targetX = player.x; monster.targetY = player.y; } }
+                
+                timers.navUpdate--;
+                if(timers.navUpdate <= 0) {
+                    let targetPos = (monster.state === 'CHASE' || monster.enrage > 0) ? player : {x: monster.targetX, y: monster.targetY};
+                    let nextNode = getNextPathNode(monster.x, monster.y, targetPos.x, targetPos.y);
+                    if(nextNode) { monster.pathTargetX = nextNode.x; monster.pathTargetY = nextNode.y; }
+                    else { monster.pathTargetX = undefined; monster.pathTargetY = undefined; if(monster.state === 'CHASE' || monster.enrage > 0) { monster.state = 'WANDER'; monster.giveUpTimer = 150; monster.targetX = monster.x + (Math.random() > 0.5 ? 1200 : -1200); monster.targetY = monster.y + (Math.random() > 0.5 ? 1200 : -1200); } } 
+                    timers.navUpdate = 10;
+                }
 
-            if (mDist < player.radius + monster.size) { 
-                gameActive = false; 
-                track2.pause(); 
-                if(droneOsc) { try { droneOsc.stop(); } catch(e){} }
-                
-                clearTimeout(genSoundTimeout);
-                genAudio.pause(); 
-                
-                sound1.currentTime = 0; 
-                sound1.play().catch(()=>{}); 
-                
-                clearTimeout(deathSoundTimeout); 
-                deathSoundTimeout = setTimeout(() => { sound1.pause(); }, 5000);
-                
-                document.getElementById('jumpscareOverlay').style.display = 'flex'; 
-                document.getElementById('jumpscareOverlay').classList.add('flash-red');
-                
-                setTimeout(() => { 
-                    document.getElementById('jumpscareOverlay').style.display='none'; 
-                    document.getElementById('jumpscareOverlay').classList.remove('flash-red'); 
-                    ui.msg.innerText="잡혔습니다..."; 
-                    ui.msg.style.color="#ff3333"; 
-                    ui.end.style.display='flex'; 
-                    ui.vhs.style.display='none'; 
-                    ui.grain.style.display='none'; 
-                }, 1500); 
+                if (monster.state === 'WANDER' && getDist(monster, {x: monster.targetX, y: monster.targetY}) < 30) { monster.targetX = player.x+(Math.random()*1500-750); monster.targetY = player.y+(Math.random()*1500-750); }
+                if (monster.pathTargetX !== undefined && monster.pathTargetY !== undefined) { let a = Math.atan2(monster.pathTargetY - monster.y, monster.pathTargetX - monster.x); monster.x += Math.cos(a)*(monster.state==='CHASE'?mSpd:mSpd*0.6); monster.y += Math.sin(a)*(monster.state==='CHASE'?mSpd:mSpd*0.6); }
+
+                env.walls.forEach(w => collide(monster, w)); env.doors.forEach(d => { if(d.state !== 'open') collide(monster, d); }); env.generators.forEach(g => collide(monster, g));
+
+                if (ghost2.active) {
+                    ghost2.timer--;
+                    if (ghost2.timer <= 0) {
+                        ui.miniScare.style.display = 'flex'; 
+                        setTimeout(() => ui.miniScare.style.display = 'none', 400); 
+                        player.stamina = 0; player.battery = Math.max(0, player.battery - 25); effects.redVignette = 0.6; effects.camShake = 20;
+                        sound2.currentTime = 0; sound2.play().catch(()=>{}); clearTimeout(sound2Timeout); sound2Timeout = setTimeout(() => { sound2.pause(); sound2.currentTime = 0; }, 3000); 
+                        ghost2.timer = Math.random()*2500+2500; 
+                    }
+                }
+
+                let tRed = (mDist < 700) ? (1-(mDist/700))*0.4 + (monster.state==='CHASE'?Math.sin(frameCount*0.2)*0.05:0) + (monster.enrage>0?0.15:0) : 0;
+                effects.redVignette += (effects.redVignette > tRed) ? -0.015 : (tRed - effects.redVignette);
+
+                if (mDist < player.radius + monster.size) { 
+                    gameActive = false; track2.pause(); if(droneOsc) { try { droneOsc.stop(); } catch(e){} }
+                    clearTimeout(genSoundTimeout); genAudio.pause(); 
+                    sound1.currentTime = 0; sound1.play().catch(()=>{}); clearTimeout(deathSoundTimeout); deathSoundTimeout = setTimeout(() => { sound1.pause(); }, 5000);
+                    
+                    ui.jumpscare.style.display = 'flex'; ui.jumpscare.classList.add('flash-red');
+                    setTimeout(() => { 
+                        ui.jumpscare.style.display='none'; ui.jumpscare.classList.remove('flash-red'); 
+                        ui.msg.innerText="잡혔습니다..."; ui.msg.style.color="#ff3333"; ui.end.style.display='flex'; ui.vhs.style.display='none'; ui.grain.style.display='none'; 
+                    }, 1500); 
+                }
+            } else {
+                ui.main.classList.remove('chromatic-aberration'); ui.key.innerText = keysCollected; ui.itemName.innerText = "🗝️ 열쇠";
+                effects.redVignette = 0;
             }
             
             if (keysCollected >= maxKeys && getDist(player, escapeGate) < player.radius + escapeGate.radius) {
-                gameActive = false; track2.pause(); if(droneOsc) { try { droneOsc.stop(); } catch(e){} } 
-                ui.msg.innerText="미로와 방을 모두 무사히 탈출했습니다!"; ui.msg.style.color="#55ff55"; ui.end.style.display='flex'; ui.vhs.style.display='none'; ui.grain.style.display='none';
+                gameActive = false; 
+                track2.pause();
+                if(droneOsc) { try { droneOsc.stop(); } catch(e){} } 
+                
+                playBatterySound(); setTimeout(playBatterySound, 200); setTimeout(playBatterySound, 400);
+
+                ui.msg.innerText = isPeacefulMode ? "✨ 평화롭게 미로 무사히 탈출 성공! ✨" : "✨ 미로 무사히 탈출 성공! ✨"; 
+                ui.msg.style.color = "#FFD700"; 
+                ui.msg.style.textShadow = "0 0 30px #FFD700";
+                ui.end.style.background = "rgba(255, 255, 255, 0.95)";
+                ui.end.style.display = 'flex'; 
+                ui.vhs.style.display = 'none'; 
+                ui.grain.style.display = 'none';
             }
         }
     }
@@ -684,7 +842,14 @@
                 let isExitReveal = (keysCollected >= maxKeys); ctx.save(); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(targetX, targetY); ctx.strokeStyle = isExitReveal ? `rgba(50, 150, 255, ${Math.random()*0.5 + 0.3})` : `rgba(255, 50, 50, ${Math.random()*0.5 + 0.3})`; ctx.lineWidth = 3; ctx.setLineDash([15, 10]); ctx.lineDashOffset = -frameCount*2; ctx.stroke(); ctx.beginPath(); ctx.arc(targetX, targetY, 50 + Math.sin(frameCount*0.2)*15, 0, Math.PI*2); ctx.fillStyle = isExitReveal ? 'rgba(50, 150, 255, 0.4)' : 'rgba(255,0,0,0.4)'; ctx.fill(); ctx.restore();
             }
             
-            visibleCandles.forEach(c => { ctx.fillStyle = 'rgba(255, 100, 50, 0.8)'; ctx.beginPath(); ctx.arc(c.x, c.y, 2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'rgba(255, 200, 100, 0.5)'; ctx.beginPath(); ctx.arc(c.x, c.y, 1, 0, Math.PI*2); ctx.fill(); });
+            visibleCandles.forEach(c => { 
+                ctx.fillStyle = '#cccccc';
+                ctx.fillRect(c.x - 3, c.y - 8, 6, 12);
+                ctx.fillStyle = 'rgba(255, 100, 20, 0.9)';
+                ctx.beginPath(); ctx.arc(c.x, c.y - 10, 4, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = 'rgba(255, 230, 150, 1)'; 
+                ctx.beginPath(); ctx.arc(c.x, c.y - 10, 2, 0, Math.PI*2); ctx.fill();
+            });
 
             visibleWalls.forEach(w => { ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(w.x+w.w, w.y); ctx.lineTo(w.x+w.w+25, w.y+w.h+30); ctx.lineTo(w.x-15, w.y+w.h+30); ctx.fill(); });
             visibleWalls.forEach(w => draw3DWall(w, screenCX, screenCY, 'wall', 'side')); visibleDoors.forEach(d => draw3DWall(d, screenCX, screenCY, 'door', 'side')); visibleGens.forEach(g => draw3DWall(g, screenCX, screenCY, 'gen', 'side'));
@@ -696,13 +861,15 @@
             visibleItems.forEach(i => { ctx.save(); ctx.translate(i.x, i.y + Math.sin(frameCount*0.1)*3); ctx.rotate(Math.PI / 4); ctx.fillStyle = 'rgba(255,215,0,0.3)'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(-6, 0, 5, 0, Math.PI*2); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#B8860B'; ctx.stroke(); ctx.fillRect(-1, -2, 14, 4); ctx.fillRect(8, 2, 3, 4); ctx.fillRect(4, 2, 3, 3); ctx.restore(); });
             ctx.fillStyle = '#00ffcc'; visibleBatteries.forEach(b => { ctx.fillRect(b.x-6, b.y-8, 12, 16); ctx.fillStyle='#aaa'; ctx.fillRect(b.x-3, b.y-11, 6, 3); ctx.fillStyle='#00ffcc'; });
 
-            if (monsterImg.complete && monsterImg.naturalWidth) { 
-                let visualSize = monster.size * 4.5; 
-                let mGlow = ctx.createRadialGradient(monster.x, monster.y, 0, monster.x, monster.y, visualSize/2);
-                mGlow.addColorStop(0, 'rgba(255, 0, 0, 0.6)'); mGlow.addColorStop(1, 'rgba(255, 0, 0, 0)');
-                ctx.fillStyle = mGlow; ctx.fillRect(monster.x - visualSize/2, monster.y - visualSize/2, visualSize, visualSize);
-                ctx.globalAlpha = 0.95; ctx.drawImage(monsterImg, monster.x - visualSize/2, monster.y - visualSize/2, visualSize, visualSize); ctx.globalAlpha = 1.0;
-            } else { ctx.fillStyle='darkred'; ctx.beginPath(); ctx.arc(monster.x, monster.y, monster.size, 0, Math.PI*2); ctx.fill(); }
+            if (!isPeacefulMode) {
+                if (monsterImg.complete && monsterImg.naturalWidth) { 
+                    let visualSize = monster.size * 4.5; 
+                    let mGlow = ctx.createRadialGradient(monster.x, monster.y, 0, monster.x, monster.y, visualSize/2);
+                    mGlow.addColorStop(0, 'rgba(255, 0, 0, 0.6)'); mGlow.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                    ctx.fillStyle = mGlow; ctx.fillRect(monster.x - visualSize/2, monster.y - visualSize/2, visualSize, visualSize);
+                    ctx.globalAlpha = 0.95; ctx.drawImage(monsterImg, monster.x - visualSize/2, monster.y - visualSize/2, visualSize, visualSize); ctx.globalAlpha = 1.0;
+                } else { ctx.fillStyle='darkred'; ctx.beginPath(); ctx.arc(monster.x, monster.y, monster.size, 0, Math.PI*2); ctx.fill(); }
+            }
             
             if (dashTimer > 0) { ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'; ctx.beginPath(); ctx.arc(player.x - dashDir.x*20, player.y - dashDir.y*20, player.radius, 0, Math.PI*2); ctx.fill(); }
             ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2); ctx.fill(); 
@@ -715,7 +882,7 @@
             
             maskCtx.clearRect(0, 0, canvas.width, canvas.height); 
             if (globalPowerTimer > 0) maskCtx.fillStyle = (Math.random() < 0.05) ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'; 
-            else maskCtx.fillStyle = player.battery<=0 ? 'rgba(0,0,0,1.0)' : 'rgba(0,0,0,0.97)'; 
+            else maskCtx.fillStyle = player.battery<=0 ? 'rgba(0,0,0,1.0)' : 'rgba(0,0,0,0.92)'; 
             
             maskCtx.fillRect(0, 0, canvas.width, canvas.height); maskCtx.globalCompositeOperation = 'destination-out';
             
@@ -726,9 +893,9 @@
 
             visibleCandles.forEach(c => {
                 let cx = c.x - cam.x, cy = c.y - cam.y + bobY;
-                let cGlow = maskCtx.createRadialGradient(cx, cy, 0, cx, cy, 80 + Math.random()*5);
-                cGlow.addColorStop(0, 'rgba(255,150,50,0.8)'); cGlow.addColorStop(1, 'rgba(255,150,50,0)');
-                maskCtx.fillStyle = cGlow; maskCtx.beginPath(); maskCtx.arc(cx, cy, 85, 0, Math.PI*2); maskCtx.fill();
+                let cGlow = maskCtx.createRadialGradient(cx, cy, 0, cx, cy, 100);
+                cGlow.addColorStop(0, 'rgba(255,255,255,0.8)'); cGlow.addColorStop(1, 'rgba(255,255,255,0)');
+                maskCtx.fillStyle = cGlow; maskCtx.beginPath(); maskCtx.arc(cx, cy, 100, 0, Math.PI*2); maskCtx.fill();
             });
 
             if (player.isLightOn && player.battery > 0) {
@@ -741,17 +908,27 @@
             }
             maskCtx.globalCompositeOperation = 'source-over'; 
             
+            visibleCandles.forEach(c => {
+                let cx = c.x - cam.x, cy = c.y - cam.y + bobY;
+                let cGlow = maskCtx.createRadialGradient(cx, cy, 0, cx, cy, 100);
+                cGlow.addColorStop(0, 'rgba(255,150,50,0.4)'); cGlow.addColorStop(1, 'rgba(255,150,50,0)');
+                maskCtx.fillStyle = cGlow; maskCtx.beginPath(); maskCtx.arc(cx, cy, 100, 0, Math.PI*2); maskCtx.fill();
+            });
+            
             ctx.save(); ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; dustParticles.forEach(d => { ctx.beginPath(); ctx.arc(d.x, d.y, d.size, 0, Math.PI*2); ctx.fill(); }); ctx.restore();
             ctx.drawImage(maskCanvas, 0, 0);
 
             ctx.fillStyle = vignette; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            let mDist = getDist(player, monster);
-            if (mDist < 600) {
-                let glitch = Math.min(1, (1-(mDist/600)) * (monster.enrage>0?1.0:0.7)); 
-                ctx.fillStyle = `rgba(200, 200, 200, ${glitch * 0.05})`; let lineCount = Math.floor(10 * glitch); 
-                for(let i=0; i<lineCount; i++) ctx.fillRect(0, Math.random()*canvas.height, canvas.width, Math.random()*2 + 1);
+            if (!isPeacefulMode) {
+                let mDist = getDist(player, monster);
+                if (mDist < 600) {
+                    let glitch = Math.min(1, (1-(mDist/600)) * (monster.enrage>0?1.0:0.7)); 
+                    ctx.fillStyle = `rgba(200, 200, 200, ${glitch * 0.05})`; let lineCount = Math.floor(10 * glitch); 
+                    for(let i=0; i<lineCount; i++) ctx.fillRect(0, Math.random()*canvas.height, canvas.width, Math.random()*2 + 1);
+                }
             }
+            
             if (effects.redVignette > 0) { ctx.fillStyle = `rgba(150,0,0,${Math.min(0.4, effects.redVignette)})`; ctx.fillRect(0, 0, canvas.width, canvas.height); }
             if (effects.lightning > 0) { ctx.fillStyle = `rgba(200,220,255,${effects.lightning*0.3})`; ctx.fillRect(0, 0, canvas.width, canvas.height); }
         }
